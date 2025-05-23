@@ -1,2 +1,3 @@
 *.DS_Store
-*.csv
+eligible_swings.csv
+rh_swing_data.csv
