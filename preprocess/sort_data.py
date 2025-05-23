@@ -4,7 +4,7 @@ import pickle
 
 def main():
     session_swings = set()
-    with open("./eligible_swings.csv") as file:
+    with open("../eligible_swings.csv") as file:
         csv_reader = csv.reader(file, delimiter=',')
         first = True
         keys = {}
@@ -15,12 +15,13 @@ def main():
                     keys[line[i]] = i
                 continue
             session_swings.add(line[keys["session_swing"]])
+    
     #print(session_swings)
 
     final_data = {}
     count = 0
     keys_angles = []
-    with open("./data/data/full_sig/joint_angles.csv") as file:
+    with open("../data/data/full_sig/joint_angles.csv") as file:
         csv_reader = csv.reader(file, delimiter=',')
         first = True
         keys = {}
@@ -47,7 +48,7 @@ def main():
                         if i == len(final_data[sess]) - 1:
                             final_data[sess].append(line)
     keys_velos = []
-    with open("./data/data/full_sig/joint_velos.csv") as file:
+    with open("../data/data/full_sig/joint_velos.csv") as file:
         csv_reader = csv.reader(file, delimiter=',')
         first = True
         keys = {}
@@ -74,8 +75,5 @@ def main():
     with open('sorted_data.pkl', 'wb') as file:
         pickle.dump(final_data, file)
                     
-                
-
-
 if __name__ == "__main__":
     main()

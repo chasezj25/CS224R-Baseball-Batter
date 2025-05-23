@@ -22,7 +22,7 @@ filter_out = {
     "hitter_side": "L"
 }
 def main():
-    with open("./data/data/metadata.csv") as file:
+    with open("../data/data/metadata.csv") as file:
         csv_reader = csv.reader(file, delimiter=',')
         first = True
         keys = {}
@@ -43,7 +43,7 @@ def main():
                 if add:
                     finals.append(row)
         
-    with open("./eligible_swings.csv", "w") as file:
+    with open("../eligible_swings.csv", "w") as file:
         csv_writer = csv.writer(file, delimiter=',')
         for line in finals:
             csv_writer.writerow(line)
