@@ -1,7 +1,87 @@
 import numpy as np
 import math
+import pickle
+import csv
 def main():
-    pass
+    session_swings = set()
+    with open("../eligible_swings.csv") as file:
+        csv_reader = csv.reader(file, delimiter=',')
+        first = True
+        keys = {}
+        for line in csv_reader:
+            if first:
+                first = False
+                for i in range(len(line)):
+                    keys[line[i]] = i
+                continue
+            session_swings.add(line[keys["session_swing"]])
+    count = 0
+    final_data = {}
+    with open("../data/data/full_sig/landmarks.csv") as file:
+        csv_reader = csv.reader(file, delimiter=',')
+        first = True
+        keys = {}
+        for line in csv_reader:
+            #print(line)
+            if count % 10000 == 0:
+                print(count)
+            count += 1
+            if first:
+                first = False
+                for i in range(len(line)):
+                    keys[line[i]] = i
+                continue
+            sess = line[keys["session_swing"]]
+            if sess in session_swings:
+                if not sess in final_data.keys():
+                    final_data[sess] = []
+                time = line[keys["time"]]
+                sweet_spot_x = line[keys["sweet_spot_x"]]
+                sweet_spot_y = line[keys["sweet_spot_y"]]
+                sweet_spot_z = line[keys["sweet_spot_z"]]
+
+                lhjc_x = line[keys["lhjc_x"]] # left hand joint center
+                lhjc_y = line[keys["lhjc_y"]]
+                lhjc_z = line[keys["lhjc_z"]]
+
+                x_ang, y_ang, z_ang = calc_pose(np.array([lhjc_x, lhjc_y, lhjc_z]), np.array([sweet_spot_x, sweet_spot_y, sweet_spot_z]))
+                x_vel = 0
+                y_vel = 0
+                z_vel = 0
+                x_ang_vel = 0
+                y_ang_vel = 0
+                z_ang_vel = 0
+
+                if(len(final_data[sess]) != 0):
+                    delta_t = time - final_data[sess][-1]["time"]
+                    x_vel = (sweet_spot_x - final_data[sess][-1]["x"]) / delta_t
+                    y_vel = (sweet_spot_y - final_data[sess][-1]["y"]) / delta_t
+                    z_vel = (sweet_spot_z - final_data[sess][-1]["z"]) / delta_t
+
+                    x_ang_vel = (x_ang - final_data[sess][-1]["x_ang"]) / delta_t
+                    y_ang_vel = (y_ang - final_data[sess][-1]["y_ang"]) / delta_t
+                    z_ang_vel = (z_ang - final_data[sess][-1]["z_ang"]) / delta_t
+                next_entry = {
+                    "time": time,
+                    "x": sweet_spot_x,
+                    "y": sweet_spot_y,
+                    "z": sweet_spot_z,
+                    "x_ang": x_ang,
+                    "y_ang": y_ang,
+                    "z_ang": z_ang,
+                    "x_vel": x_vel,
+                    "y_vel": y_vel,
+                    "z_vel": z_vel,
+                    "x_ang_vel": x_ang_vel,
+                    "y_ang_vel": y_ang_vel,
+                    "z_ang_vel": z_ang_vel
+                }
+                final_data[sess].append(next_entry)
+    with open('bat_data.pkl', 'wb') as file:
+        pickle.dump(final_data, file)
+
+
+
 
 def calc_pose(left_hand, bat_sweet_spot):
     axis = bat_sweet_spot - left_hand
