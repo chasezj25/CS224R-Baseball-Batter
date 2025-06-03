@@ -44,6 +44,13 @@ def main():
                 lhjc_y = try_float(final_data, sess,line[keys["lhjc_y"]], "lhjc_y")
                 lhjc_z = try_float(final_data, sess,line[keys["lhjc_z"]], "lhjc_z")
 
+                lajc_x = try_float(final_data, sess,line[keys["lajc_x"]], "lajc_x")
+                lajc_y = try_float(final_data, sess,line[keys["lajc_y"]], "lajc_y")
+                lajc_z = try_float(final_data, sess,line[keys["lajc_z"]], "lajc_z")
+                rajc_x = try_float(final_data, sess,line[keys["rajc_x"]], "rajc_x")
+                rajc_y = try_float(final_data, sess,line[keys["rajc_y"]], "rajc_y")
+                rajc_z = try_float(final_data, sess,line[keys["rajc_z"]], "rajc_z")
+
                 x_ang, y_ang, z_ang = calc_pose(np.array([lhjc_x, lhjc_y, lhjc_z]), np.array([sweet_spot_x, sweet_spot_y, sweet_spot_z]))
                 x_vel = 0
                 y_vel = 0
@@ -77,7 +84,13 @@ def main():
                     "z_ang_vel": z_ang_vel,
                     "lhjc_x": lhjc_x,
                     "lhjc_y": lhjc_y,
-                    "lhjc_z": lhjc_z
+                    "lhjc_z": lhjc_z,
+                    "lajc_x": lajc_x,
+                    "lajc_y": lajc_y,
+                    "lajc_z": lajc_z,
+                    "rajc_x": rajc_x,
+                    "rajc_y": rajc_y,
+                    "rajc_z": rajc_z
                 }
                 final_data[sess].append(next_entry)
     with open('../bat_data.pkl', 'wb') as file:
