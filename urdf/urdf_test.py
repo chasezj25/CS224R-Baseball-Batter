@@ -79,10 +79,18 @@ p.resetDebugVisualizerCamera(
 )
 
 # Animate the swing frame by frame
+step = 1 / len(frames)
+rgb = 1
 for frame in frames:
     # Position (sweet spot)
     pos = [frame["x"], frame["y"], frame["z"]]
-
+    p.addUserDebugLine(pos, 
+                   [pos[0] + 0.01,
+                    pos[1],
+                    pos[2]],
+                   lineColorRGB= [rgb , 0, 1 - rgb],
+                   lineWidth=10)
+    rgb -= step
     # Orientation (converted from degrees to radians, then to quaternion)
     euler = [
         math.radians(frame["x_ang"]),
