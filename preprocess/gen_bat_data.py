@@ -99,19 +99,24 @@ def calc_pose(left_hand, bat_sweet_spot):
     z = np.array([0,0,1])
     proj_yz = proj(axis, y, z)
     proj_yz = np.array([proj_yz[1], proj_yz[2]])
-    proj_xz = proj(axis, x, z)
-    proj_xz = np.array([proj_xz[0], proj_xz[2]])
-    z_2d = np.array([0,1])
+    #proj_xz = proj(axis, x, z)
+    #proj_xz = np.array([proj_xz[0], proj_xz[2]])
+    proj_yx = proj(axis, x, y)
+    proj_yx = np.array([proj_yx[0], proj_yx[1]])
+    #z_2d = np.array([0,1])\
+    y_2d_proj_yz = np.array([1,0])
+    y_2d_proj_yx = np.array([0,1])
     multiplier = 1
-    if cross_prod(proj_yz, z_2d) > 0:
+    if cross_prod(proj_yz, y_2d_proj_yz) > 0:
         multiplier = -1
-    angle_x = multiplier * cos_deg(z_2d, proj_yz)
-    if cross_prod(proj_xz, z_2d) < 0:
+    angle_x = multiplier * cos_deg(y_2d_proj_yz, proj_yz)
+    if cross_prod(proj_yx, y_2d_proj_yx) > 0:
         multiplier = -1
     else:
         multiplier = 1
-    angle_y = multiplier * cos_deg(z_2d, proj_xz)
-    return angle_x, angle_y, 0
+    angle_z = multiplier * cos_deg(y_2d_proj_yx, proj_yx)
+    angle_y = 0
+    return angle_x, angle_y, angle_z
 
 def proj(axis, axis_1, axis_2):
     a1 = (np.dot(axis, axis_1) / np.dot(axis_1, axis_1)) * axis_1
