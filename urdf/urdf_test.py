@@ -84,12 +84,27 @@ rgb = 1
 for frame in frames:
     # Position (sweet spot)
     pos = [frame["x"], frame["y"], frame["z"]]
+    """" draw spheres instead of lines, MUCH SLOWER
+    visual_shape_id = p.createVisualShape(
+        shapeType=p.GEOM_SPHERE,
+        radius=.01,
+        rgbaColor= [rgb , 0, 1 - rgb, 1],
+    )
+
+)
+    p.createMultiBody(
+        baseMass=0,
+        baseVisualShapeIndex=visual_shape_id,
+        basePosition=pos,
+    )
+    """
     p.addUserDebugLine(pos, 
                    [pos[0] + 0.01,
                     pos[1],
                     pos[2]],
                    lineColorRGB= [rgb , 0, 1 - rgb],
                    lineWidth=10)
+    
     rgb -= step
     # Orientation (converted from degrees to radians, then to quaternion)
     euler = [
