@@ -91,7 +91,6 @@ def try_float(final_data, sess, str, key):
         ret = final_data[sess][-1][key]
     return ret
 
-
 def calc_pose(left_hand, bat_sweet_spot):
     axis = bat_sweet_spot - left_hand
     axis = axis / (np.sqrt(np.dot(axis, axis)))
@@ -114,10 +113,6 @@ def calc_pose(left_hand, bat_sweet_spot):
     angle_y = multiplier * cos_deg(z_2d, proj_xz)
     return angle_x, angle_y, 0
 
-
-
-
-
 def proj(axis, axis_1, axis_2):
     a1 = (np.dot(axis, axis_1) / np.dot(axis_1, axis_1)) * axis_1
     a2 = (np.dot(axis, axis_2) / np.dot(axis_2, axis_2)) * axis_2
@@ -130,8 +125,6 @@ def cos_deg(a,b):
 
 def cross_prod(a,b):
     return (a[0] * b[1]) - (a[1] * b[0])
-
-
 
 if __name__ == "__main__":
     main()
