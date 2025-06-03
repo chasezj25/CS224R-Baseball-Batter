@@ -35,14 +35,14 @@ def main():
             if sess in session_swings:
                 if not sess in final_data.keys():
                     final_data[sess] = []
-                time = line[keys["time"]]
-                sweet_spot_x = line[keys["sweet_spot_x"]]
-                sweet_spot_y = line[keys["sweet_spot_y"]]
-                sweet_spot_z = line[keys["sweet_spot_z"]]
-
-                lhjc_x = line[keys["lhjc_x"]] # left hand joint center
-                lhjc_y = line[keys["lhjc_y"]]
-                lhjc_z = line[keys["lhjc_z"]]
+                time = float(line[keys["time"]])
+                sweet_spot_x = try_float(final_data, sess, line[keys["sweet_spot_x"]], "x")
+                sweet_spot_y = try_float(final_data, sess, line[keys["sweet_spot_y"]], "y")
+                sweet_spot_z = try_float(final_data, sess, line[keys["sweet_spot_z"]], "z")
+                
+                lhjc_x = try_float(final_data, sess,line[keys["lhjc_x"]], "lhjc_x") # left hand joint center
+                lhjc_y = try_float(final_data, sess,line[keys["lhjc_y"]], "lhjc_y")
+                lhjc_z = try_float(final_data, sess,line[keys["lhjc_z"]], "lhjc_z")
 
                 x_ang, y_ang, z_ang = calc_pose(np.array([lhjc_x, lhjc_y, lhjc_z]), np.array([sweet_spot_x, sweet_spot_y, sweet_spot_z]))
                 x_vel = 0
@@ -74,13 +74,22 @@ def main():
                     "z_vel": z_vel,
                     "x_ang_vel": x_ang_vel,
                     "y_ang_vel": y_ang_vel,
-                    "z_ang_vel": z_ang_vel
+                    "z_ang_vel": z_ang_vel,
+                    "lhjc_x": lhjc_x,
+                    "lhjc_y": lhjc_y,
+                    "lhjc_z": lhjc_z
                 }
                 final_data[sess].append(next_entry)
-    with open('bat_data.pkl', 'wb') as file:
+    with open('../bat_data.pkl', 'wb') as file:
         pickle.dump(final_data, file)
 
-
+#In case there is gaps in the data
+def try_float(final_data, sess, str, key):
+    try:
+        ret = float(str)
+    except:
+        ret = final_data[sess][-1][key]
+    return ret
 
 
 def calc_pose(left_hand, bat_sweet_spot):
