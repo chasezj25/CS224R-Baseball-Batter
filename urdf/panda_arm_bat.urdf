@@ -10,7 +10,7 @@
   		<visual>
     		<origin xyz="0 0 0.05" rpy="0 0 0"/>
     		<geometry>
-      			<box size="0.3 0.3 0.1"/> <!-- width, depth, height -->
+      			<box size="0.3 0.3 0.6"/> <!-- width, depth, height -->
     		</geometry>
    			<material name="gray">
       		<color rgba="0.5 0.5 0.5 1"/>
@@ -19,7 +19,7 @@
   		<collision>
     		<origin xyz="0 0 0.05" rpy="0 0 0"/>
     		<geometry>
-      			<box size="0.3 0.3 0.1"/>
+      			<box size="0.1 0.1 0.6"/>
     		</geometry>
   		</collision>
 	</link>
@@ -184,7 +184,7 @@
 	<joint name="base_to_link0" type="fixed">
   		<parent link="base_box"/>
   		<child link="link0"/>
- 		<origin xyz="0 0 0.1" rpy="0 0 0"/> <!-- box height: 0.1, so this places link0 on top -->
+ 		<origin xyz="0 0 0.6" rpy="0 0 0"/> <!-- change box dim here -->
 	</joint>
 	<joint name="joint1" type="revolute">
 		<safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-2.8973" soft_upper_limit="2.8973"/>

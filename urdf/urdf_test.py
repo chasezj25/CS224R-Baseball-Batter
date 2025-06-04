@@ -32,7 +32,7 @@ for i in range(p.getNumJoints(robot)):
         movable_joints.append(i)
 
 # Load bat swing data
-pickle_path = os.path.join(current_dir, "../bat_data.pkl") # above directory for most recent bat data
+pickle_path = os.path.join(current_dir, "bat_data.pkl") # above directory for most recent bat data
 with open(pickle_path, "rb") as f:
     bat_data = pickle.load(f)
 
@@ -81,7 +81,8 @@ p.resetDebugVisualizerCamera(
 # Animate the swing frame by frame
 step = 1 / len(frames)
 rgb = 1
-scale = 1 # scale down from human operational space space to robot op space
+scale = 1.0 # scale down from human operational space space to robot op space
+feet_to_meters = 0.3048
 print(frames[0].keys())
 x_off = scale * (frames[0]["lajc_x"] + frames[0]["rajc_x"]) / 2
 y_off = scale * (frames[0]["lajc_y"] + frames[0]["rajc_y"]) / 2
@@ -136,11 +137,13 @@ for frame in frames:
             jointIndex=joint_idx,
             controlMode=p.POSITION_CONTROL,
             targetPosition=target_pos,
-            force=200
+            force=200, # seems like default value is 500
+            positionGain=0.1
         )
 
     p.stepSimulation()
-    time.sleep(0.01)  # Assuming 100Hz data frequency
+    time.sleep(0.05)  # Assuming 100Hz data frequency
+    #time.sleep(0.0028)
 
 # === Keep simulation window open ===
 while True:

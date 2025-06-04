@@ -4,36 +4,43 @@ import numpy as np
 import pybullet as p
 import pybullet_data
 import time
+import os
 
 class PandaSwingEnv(gym.Env):
     metadata = {"render.modes": ["human"]}
 
-    def __init__(self, render=False):
+    def __init__(self, render=False, demo_trajectory=None):
         super().__init__()
-        self.render_mode = render # Rendering for debugging
-        self.time_step = 1.0 / 240.0 # Frame rate for Sampling
-        self.max_steps = 200 # Maximum steps taken per episode
-        self.step_counter = 0 # Counter for steps taken in the current episode
+        self.render_mode = render
+        self.demo_trajectory = demo_trajectory
+        self.bat_offset = np.array([])
+        self.step_counter = 0
+        self.max_steps = len(demo_trajectory) - 1 if demo_trajectory is not None else 200
+        self.time_step = 1.0 / 240.0
 
-        # Start PyBullet simulation
         if self.render_mode:
             self.physics_client = p.connect(p.GUI)
         else:
             self.physics_client = p.connect(p.DIRECT)
 
-        p.setAdditionalSearchPath(pybullet_data.getDataPath()) # For loading URDFs
-        p.setGravity(0, -9.81, 0) # Set gravity (y-axis up environment) 
+        p.setAdditionalSearchPath(pybullet_data.getDataPath())
+        p.setGravity(0, 0, -9.81)
 
-        self._load_env() # Load the environment
+        self._load_env()
 
-        self.num_joints = p.getNumJoints(self.robot) # Number of joints in the robot
-        self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(7,), dtype=np.float32)  # Joint angle deltas 
-        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(14,), dtype=np.float32) #  
+        self.num_joints = 7
+
+        # Action: bat tip 6D pose (position + orientation)
+        self.action_space = spaces.Box(low=-np.inf, high=np.inf, shape=(6,), dtype=np.float32)
+        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(15,), dtype=np.float32)
 
     def _load_env(self):
         self.plane = p.loadURDF("plane.urdf")
-        self.robot = p.loadURDF("franka_panda/panda.urdf", useFixedBase=True)
-        self.bat = p.loadURDF("bat/bat.urdf", useFixedBase=False)
+        
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        urdf_file = os.path.join(current_dir, "panda_arm_bat.urdf")
+
+        self.robot = p.loadURDF(urdf_file, useFixedBase=True)
 
     def reset(self):
         self.step_counter = 0
@@ -41,40 +48,65 @@ class PandaSwingEnv(gym.Env):
         p.setGravity(0, 0, -9.81)
         self._load_env()
 
-        # Neutral position
-        joint_positions = [0, -0.5, 0, -2.0, 0, 1.5, 0.7]
-        for i in range(7):
-            p.resetJointState(self.robot, i, joint_positions[i])
+        if self.demo_trajectory is not None:
+            bat_pose = self.demo_trajectory[0][:6]
+        else:
+            bat_pose = np.zeros(6)
+
+        hand_pos, hand_quat = self._bat_pose_to_hand_ik(bat_pose)
+
+        joint_angles = p.calculateInverseKinematics(self.robot, self.ee_link_index, hand_pos, hand_quat)
+        for i in range(self.num_joints):
+            p.resetJointState(self.robot, i, joint_angles[i])
 
         return self._get_observation()
 
     def step(self, action):
         self.step_counter += 1
+        bat_pose = action[:6]
+        hand_pos, hand_quat = self._bat_pose_to_hand_ik(bat_pose)
 
-        # Apply joint deltas
-        for i in range(7):
-            current = p.getJointState(self.robot, i)[0]
-            target = current + action[i]
-            p.setJointMotorControl2(self.robot, i, p.POSITION_CONTROL, targetPosition=target)
+        joint_angles = p.calculateInverseKinematics(self.robot, self.num_joints, hand_pos, hand_quat)
 
-        for _ in range(10):  # simulate real time
+        for i in range(self.num_joints):
+            p.setJointMotorControl2(self.robot, i, p.POSITION_CONTROL, targetPosition=joint_angles[i])
+
+        for _ in range(10):
             p.stepSimulation()
             if self.render_mode:
                 time.sleep(self.time_step)
 
         obs = self._get_observation()
-        reward = -np.linalg.norm(obs[:3])  # e.g. keep wrist near origin
         done = self.step_counter >= self.max_steps
-        return obs, reward, done, {}
+
+        reward = 0.0
+        if self.demo_trajectory is not None and self.step_counter < len(self.demo_trajectory):
+            expert_next = self.demo_trajectory[self.step_counter]
+            true_bat_pose = expert_next[:6]
+            reward = -np.linalg.norm(action[:3] - true_bat_pose[:3]) \
+                     - 0.1 * np.linalg.norm(action[3:6] - true_bat_pose[3:6])
+
+        return obs, reward, done
+
+    def _bat_pose_to_hand_ik(self, bat_pose):
+        bat_pos = np.array(bat_pose[:3])
+        bat_euler = np.array(bat_pose[3:6])
+        bat_quat = p.getQuaternionFromEuler(bat_euler)
+
+        # Rotate offset to get from bat tip to hand
+        rot_matrix = np.array(p.getMatrixFromQuaternion(bat_quat)).reshape(3, 3)
+        hand_pos = bat_pos - rot_matrix @ self.bat_offset
+
+        return hand_pos.tolist(), bat_quat
 
     def _get_observation(self):
-        joint_states = [p.getJointState(self.robot, i)[:2] for i in range(7)]
-        joint_positions = [s[0] for s in joint_states]
-        joint_velocities = [s[1] for s in joint_states]
-        return np.array(joint_positions + joint_velocities, dtype=np.float32)
+        if self.demo_trajectory is not None:
+            return self.demo_trajectory[self.step_counter].astype(np.float32)
+        else:
+            return np.zeros(15, dtype=np.float32)
 
     def render(self, mode="human"):
-        pass  # PyBullet GUI handles rendering
+        pass
 
     def close(self):
         p.disconnect()

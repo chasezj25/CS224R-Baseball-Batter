@@ -1,39 +1,144 @@
+"""
+A simple implementation of a Behavior Cloning (BC) agent using PyTorch.
+Adapted from original code in homework 1.
+"""
+
 import torch
-import torch.nn as nn
+from torch import nn
+from torch.nn import functional as F
+from torch import optim
+from torch import distributions
+
+import numpy as np
+
+from model.infrastructure import utils
+from model.infrastructure.replay_buffer import ReplayBuffer
+
+def build_mlp(input_dim, output_dim, n_layers=2, hidden_dim=64):
+    layers = []
+    layers.append(nn.Linear(input_dim, hidden_dim))
+    layers.append(nn.ReLU())
+    
+    for _ in range(n_layers - 1):
+        layers.append(nn.Linear(hidden_dim, hidden_dim))
+        layers.append(nn.ReLU())
+    
+    layers.append(nn.Linear(hidden_dim, output_dim))
+    return nn.Sequential(*layers)
 
 class BCPolicy(nn.Module):
-    def __init__(self, obs_dim, action_dim, hidden_dim=128):
-        super().__init__()
-        self.net = nn.Sequential(
-            nn.Linear(obs_dim, hidden_dim),
-            nn.ReLU(),
-            nn.Linear(hidden_dim, hidden_dim),
-            nn.ReLU(),
-            nn.Linear(hidden_dim, action_dim)
+    def __init__(self, input_dim, output_dim, n_layers=2, hidden_dim=64, learning_rate=1e-3):
+        """
+        Initialize the BCPolicy neural network agent.
+        """
+        super(BCPolicy, self).__init__()
+
+        # Initialize the neural network
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        self.hidden_dim = hidden_dim
+        self.n_layers = n_layers
+        self.learning_rate = learning_rate
+        
+        self.network = build_mlp(
+            input_dim=self.input_dim, 
+            output_dim=self.output_dim, 
+            n_layers=self.n_layers, 
+            hidden_dim=self.hidden_dim
         )
 
-    def forward(self, obs):
-        return self.net(obs)
+        self.mean_net.to(utils.device)
+        self.logstd = nn.Parameter(torch.zeros(self.output_dim, dtype=torch.float32, device=utils.device))
+        self.logstd.to(utils.device)
+        self.optimizer = optim.Adam(
+            list(self.network.parameters()) + [self.logstd],
+            lr=self.learning_rate
+        )
+
+    def save(self, path):
+        """
+        Save the model to the specified path.
+        """
+        torch.save(self.state_dict(), path)
+
+    def forward(self, observation):
+        """
+        Forward pass through the network to get the predicted action distribution.
+        """
+        mean = self.network(observation)
+        std = torch.exp(self.logstd)
+        dist = distributions.Normal(mean, std)
+        return dist
+
+    def update(self, observation, action):
+        """
+        Update the policy using mean squared error loss between sampled action and target actions.
+        """
+        observation = utils.from_numpy(observation)
+        action = utils.from_numpy(action)
+
+        # Get predicted action distribution and sample from it
+        dist = self.forward(observation)
+        pred_action = dist.rsample()
+        loss = F.mse_loss(pred_action, action)
+
+        # Backpropagation
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+        
+        return {
+            'Training Loss': loss.to('cpu').detach().numpy()
+        }
+
+    def get_action(self, observation):
+        """
+        Get the predicted action for the given observation by sampling from the distribution.
+        """
+        if len(observation.shape) <= 1:
+            observation = observation[None]
+
+        observation = torch.tensor(observation, dtype=torch.float32, device=utils.device)
+        dist = self.forward(observation)
+        action = dist.rsample()
+        return utils.to_numpy(action)
 
 class BCAgent:
-    def __init__(self, obs_dim, action_dim, hidden_dim=128):
-        self.policy = BCPolicy(obs_dim, action_dim, hidden_dim)
-        self.loss_fn = nn.MSELoss()
+    """
+    A Behavior Cloning agent that uses a neural network policy to mimic expert behavior.
+    """
+    def __init__(self, env, agent_params):
+        self.env = env
+        self.agent_params = agent_params
+        self.actor = BCPolicy(
+            input_dim=agent_params['ob_dim'],
+            output_dim=agent_params['ac_dim'],
+            n_layers=agent_params['n_layers'],
+            hidden_dim=agent_params['size'],
+            learning_rate=agent_params['learning_rate']
+        )
 
-    def compute_loss(self, pred, targets):
-        return self.loss_fn(pred, targets)
+        self.replay_buffer = ReplayBuffer(
+            self.agent_params['max_replay_buffer_size'],
+        )
 
-    def update(self, obs_batch, target_batch, optimizer):
+    def train(self, observation, action):
+        log = self.actor.update(observation, action)
+        return log
+    
+    def add_to_replay_buffer(self, paths):
         """
-        Update policy using a batch of (obs, next_pose).
         """
-        pred = self.policy(obs_batch)              # shape: (batch, action_dim)
-        loss = self.compute_loss(pred, target_batch)
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-        return loss.item()
+        self.replay_buffer.add_rollouts(paths)
 
-    def predict(self, obs):
-        with torch.no_grad():
-            return self.policy(obs)
+    def sample(self, batch_size):
+        """
+        Sample a batch of data from the replay buffer.
+        """
+        return self.replay_buffer.sample_random_data(batch_size)
+    
+    def save(self, path):
+        """
+        Save the agent's model to the specified path.
+        """
+        return self.actor.save(path)

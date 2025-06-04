@@ -2,6 +2,13 @@ import numpy as np
 import math
 import pickle
 import csv
+
+MAX_TIMESTEPS = 200
+
+BAT_SPEED_COEF = .1
+HIT_COEF = 5
+EUCLID_DIST_COEF = -2.5
+
 def main():
     session_swings = set()
     with open("../eligible_swings.csv") as file:
@@ -36,6 +43,7 @@ def main():
                 if not sess in final_data.keys():
                     final_data[sess] = []
                 time = float(line[keys["time"]])
+                contact_time = float(line[keys["contact_time"]])
                 sweet_spot_x = try_float(final_data, sess, line[keys["sweet_spot_x"]], "x")
                 sweet_spot_y = try_float(final_data, sess, line[keys["sweet_spot_y"]], "y")
                 sweet_spot_z = try_float(final_data, sess, line[keys["sweet_spot_z"]], "z")
@@ -70,6 +78,7 @@ def main():
                     z_ang_vel = (z_ang - final_data[sess][-1]["z_ang"]) / delta_t
                 next_entry = {
                     "time": time,
+                    "contact_time": contact_time,
                     "x": sweet_spot_x,
                     "y": sweet_spot_y,
                     "z": sweet_spot_z,
@@ -95,6 +104,111 @@ def main():
                 final_data[sess].append(next_entry)
     with open('../bat_data.pkl', 'wb') as file:
         pickle.dump(final_data, file)
+
+    low_hz = []
+    for sess in final_data.keys():
+        print(sess)
+        contact_time = final_data[sess][0]["contact_time"]
+        interval = 0.01
+        index = 0
+        episodes =[]
+        ball_pos = None
+        while index < len(final_data[sess]):
+            collect = []
+            while  index < len(final_data[sess]) and final_data[sess][index]["time"] < interval:
+                collect.append(final_data[sess][index])
+                #print("TRUE TIME:", collect[-1]["time"])
+                index += 1           
+            averaged = average(collect)
+            if contact_time < averaged["time"]:
+                #print("HIT FOUND!")
+                contact_time = 999999
+                ball_pos = [averaged["x"], averaged["y"], averaged["z"]]
+            #else:
+                #print(contact_time, averaged["time"])
+            episodes.append(averaged)
+            interval += 0.01
+        ep_index = 0
+        obs = []
+        next_obs = []
+        actions = []
+        rewards = []
+        terminals = []
+        while ep_index < MAX_TIMESTEPS and ep_index < len(episodes):
+            obs.append(gen_observation(episodes, ep_index, ball_pos))
+            next_obs.append(gen_observation(episodes, ep_index + 1, ball_pos))
+            actions.append(next_obs[-1][0][:6])
+            reward = 0
+            if next_obs[-1][0][-1] != obs[-1][0][-1]: # hit change of state
+                reward += HIT_COEF * 1
+
+            bat_velo = (next_obs[-1][0][6]**2 + next_obs[-1][0][7]**2 + next_obs[-1][0][8]**2)**.5
+            reward += bat_velo * BAT_SPEED_COEF
+            if obs[-1][0][-1] != 1:
+                dist = ((next_obs[-1][0][0] - next_obs[-1][0][-4])**2 + (next_obs[-1][0][1] - next_obs[-1][0][-3]) + (next_obs[-1][0][2] - next_obs[-1][0][-2]))**.5
+                reward += EUCLID_DIST_COEF * dist
+            rewards.append(reward)
+            if ep_index == MAX_TIMESTEPS -1 or ep_index == len(episodes) -1:
+                terminals.append(1)
+            else:
+                terminals.append(0)
+            ep_index += 1
+        low_hz.append({
+            "observations": obs,
+            "next_observations": next_obs,
+            "rewards": rewards,
+            "actions": actions,
+            "terminals": terminals
+        })
+    with open('../bat_data_100hz.pkl', 'wb') as file:
+        pickle.dump(low_hz, file)
+
+def gen_observation(episodes, index, ball_pos, k=5):
+    ret = []
+    
+    for i in range(k):
+        if(index - i < 0):
+            ret.append(ret[-1])
+            continue
+        idx = index
+        if idx >= len(episodes):
+            idx = len(episodes) - 1
+        time_step = episodes[idx - i]
+        hit = 0
+        if time_step["contact_time"] < time_step["time"]:
+            hit = 1
+        vals = [
+            time_step["x"],
+            time_step["y"],
+            time_step["z"],
+            time_step["x_ang"],
+            time_step["y_ang"],
+            time_step["z_ang"],
+            time_step["x_vel"],
+            time_step["y_vel"],
+            time_step["z_vel"],
+            time_step["x_ang_vel"],
+            time_step["y_ang_vel"],
+            time_step["z_ang_vel"],
+            ball_pos[0],
+            ball_pos[1],
+            ball_pos[2],
+            hit
+        ]
+        ret.append(vals)
+    return ret
+
+
+
+def average(collect):
+    out = {}
+    for key in collect[0].keys():
+        sum = 0
+        for interval in collect:
+            sum += interval[key]
+        avg = sum / len(collect)
+        out[key] = avg
+    return out
 
 #In case there is gaps in the data
 def try_float(final_data, sess, str, key):
