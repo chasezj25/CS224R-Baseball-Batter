@@ -32,7 +32,7 @@ for i in range(p.getNumJoints(robot)):
         movable_joints.append(i)
 
 # Load bat swing data
-pickle_path = os.path.join(current_dir, "../bat_data.pkl") # above directory for most recent bat data
+pickle_path = os.path.join(current_dir, "bat_data.pkl") # above directory for most recent bat data
 with open(pickle_path, "rb") as f:
     bat_data = pickle.load(f)
 
