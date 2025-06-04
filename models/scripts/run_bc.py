@@ -39,10 +39,10 @@ def run_bc(params):
 
     trainer = BCTrainer(params)
     trainer.run_training_loop(
+        n_iter = params['n_iter'],
         initial_expertdata = params['expert_data'],
-        collect_policy = trainer.agent.actor,
+        collect_policy = trainer.agent.actor,  
         eval_policy = trainer.agent.actor,
-        relabel_with_expert = params['do_dagger'],
     )
 
 
@@ -58,19 +58,23 @@ def main():
     parser.add_argument('--expert_data', '-ed', type=str, required=True)
     parser.add_argument('--exp_name', '-env', type=str, 
                         default='bc_experiment', required=True)
+    parser.add_argument('--env_name', '-env_name', type=str,
+                        default='SwingPanda-v0', required=True)
     parser.add_argument('--do_dagger', action='store_true')
-    parser.add_argument('--ep_len', type=int)
+    parser.add_argument('--ep_len', type=int, default=200)
 
     # Sets the number of gradient steps for training policy (per iteration in n_iter)
     parser.add_argument('--num_agent_train_steps', type=int, default=1000)
 
     # Amount of training data collected (in the env) during each iteration 
     # For final results, recommend a batch size of at least 10,000.
-    parser.add_argument('--batch_size', type=int, default=1000)
+    parser.add_argument('--batch_size', type=int, default=10000)
     # Amount of evaluation data collected (in the env) for logging metrics
-    parser.add_argument('--eval_batch_size', type=int, default=1000)
+    parser.add_argument('--eval_batch_size', type=int, default=10000)
     # Number of sampled data points to be used per gradient/train step
     parser.add_argument('--train_batch_size', type=int, default=100)
+    # Number of iterations to run the training loop
+    parser.add_argument('--n_iter', type=int, default=1)
 
     # Depth of the policy to be learned
     parser.add_argument('--num_layers', type=int, default=2)
@@ -93,16 +97,16 @@ def main():
     ### CREATE DIRECTORY FOR LOGGING
     ##################################
     
-    if args.do_dagger:
-        assert args.n_iter > 1, ('DAgger requires more than one iteration of \
-            training to iteratively collect data from the expert and train.')
+    # if args.do_dagger:
+    #     assert args.n_iter > 1, ('DAgger requires more than one iteration of \
+    #         training to iteratively collect data from the expert and train.')
 
-    else:
-        assert args.n_iter == 1, ('Without DAgger, only one iteration of training \
-            is required to train the policy on the expert data.')
+    # else:
+    #     assert args.n_iter == 1, ('Without DAgger, only one iteration of training \
+    #         is required to train the policy on the expert data.')
         
     # Director for logging results
-    data_path = os.path.join()
+    data_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../results')
     if not os.path.exists(data_path):
         os.makedirs(data_path)
     logdir = args.exp_name + '_' + time.strftime('%Y-%m-%d_%H-%M-%S')

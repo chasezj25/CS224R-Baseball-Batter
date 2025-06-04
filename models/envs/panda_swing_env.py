@@ -13,10 +13,10 @@ class PandaSwingEnv(gym.Env):
         super().__init__()
         self.render_mode = render
         self.demo_trajectory = demo_trajectory
-        self.bat_offset = np.array([])
+        self.bat_offset = np.array([0.0, 0.0, 0.1])
         self.step_counter = 0
         self.max_steps = len(demo_trajectory) - 1 if demo_trajectory is not None else 200
-        self.time_step = 1.0 / 240.0
+        self.time_step = 1.0 / 100.0 # 100 Hz
 
         if self.render_mode:
             self.physics_client = p.connect(p.GUI)
@@ -32,7 +32,7 @@ class PandaSwingEnv(gym.Env):
 
         # Action: bat tip 6D pose (position + orientation)
         self.action_space = spaces.Box(low=-np.inf, high=np.inf, shape=(6,), dtype=np.float32)
-        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(15,), dtype=np.float32)
+        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(80,), dtype=np.float32)
 
     def _load_env(self):
         self.plane = p.loadURDF("plane.urdf")
@@ -55,7 +55,7 @@ class PandaSwingEnv(gym.Env):
 
         hand_pos, hand_quat = self._bat_pose_to_hand_ik(bat_pose)
 
-        joint_angles = p.calculateInverseKinematics(self.robot, self.ee_link_index, hand_pos, hand_quat)
+        joint_angles = p.calculateInverseKinematics(self.robot, self.num_joints, hand_pos, hand_quat)
         for i in range(self.num_joints):
             p.resetJointState(self.robot, i, joint_angles[i])
 
@@ -86,7 +86,7 @@ class PandaSwingEnv(gym.Env):
             reward = -np.linalg.norm(action[:3] - true_bat_pose[:3]) \
                      - 0.1 * np.linalg.norm(action[3:6] - true_bat_pose[3:6])
 
-        return obs, reward, done
+        return obs, reward, done, {}
 
     def _bat_pose_to_hand_ik(self, bat_pose):
         bat_pos = np.array(bat_pose[:3])
@@ -103,7 +103,7 @@ class PandaSwingEnv(gym.Env):
         if self.demo_trajectory is not None:
             return self.demo_trajectory[self.step_counter].astype(np.float32)
         else:
-            return np.zeros(15, dtype=np.float32)
+            return np.zeros(80, dtype=np.float32)
 
     def render(self, mode="human"):
         pass

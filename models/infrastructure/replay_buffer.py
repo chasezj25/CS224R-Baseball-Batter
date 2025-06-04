@@ -13,13 +13,14 @@ class ReplayBuffer():
     def __init__(self, max_size=1000000):
         # Storage for each rollout
         self.paths = []
+        self.max_size = max_size
 
         # Store component arrays from each rollout
-        self.observations = []
-        self.actions = []
-        self.rewards = []
-        self.next_observations = []
-        self.terminals = []
+        self.observations = None
+        self.actions = None
+        self.rewards = None
+        self.next_observations = None
+        self.terminals = None
 
     def __len__(self):
         """
@@ -58,7 +59,7 @@ class ReplayBuffer():
         """
         Samples a random batch of data from the replay buffer.
         """
-        indices = np.random.permutation(self.obs.shape[0])[:batch_size]
+        indices = np.random.permutation(self.observations.shape[0])[:batch_size]
 
         return (
             self.observations[indices],

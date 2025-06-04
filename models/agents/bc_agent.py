@@ -11,8 +11,8 @@ from torch import distributions
 
 import numpy as np
 
-from model.infrastructure import utils
-from model.infrastructure.replay_buffer import ReplayBuffer
+from models.infrastructure import utils
+from models.infrastructure.replay_buffer import ReplayBuffer
 
 def build_mlp(input_dim, output_dim, n_layers=2, hidden_dim=64):
     layers = []
@@ -47,7 +47,7 @@ class BCPolicy(nn.Module):
             hidden_dim=self.hidden_dim
         )
 
-        self.mean_net.to(utils.device)
+        self.network.to(utils.device)
         self.logstd = nn.Parameter(torch.zeros(self.output_dim, dtype=torch.float32, device=utils.device))
         self.logstd.to(utils.device)
         self.optimizer = optim.Adam(
@@ -74,8 +74,8 @@ class BCPolicy(nn.Module):
         """
         Update the policy using mean squared error loss between sampled action and target actions.
         """
-        observation = utils.from_numpy(observation)
-        action = utils.from_numpy(action)
+        observation = utils.from_numpy(observation.astype(np.float32))
+        action = utils.from_numpy(action.astype(np.float32))
 
         # Get predicted action distribution and sample from it
         dist = self.forward(observation)
@@ -98,7 +98,7 @@ class BCPolicy(nn.Module):
         if len(observation.shape) <= 1:
             observation = observation[None]
 
-        observation = torch.tensor(observation, dtype=torch.float32, device=utils.device)
+        observation = utils.from_numpy(observation.astype(np.float32))
         dist = self.forward(observation)
         action = dist.rsample()
         return utils.to_numpy(action)
@@ -113,7 +113,7 @@ class BCAgent:
         self.actor = BCPolicy(
             input_dim=agent_params['ob_dim'],
             output_dim=agent_params['ac_dim'],
-            n_layers=agent_params['n_layers'],
+            n_layers=agent_params['num_layers'],
             hidden_dim=agent_params['size'],
             learning_rate=agent_params['learning_rate']
         )

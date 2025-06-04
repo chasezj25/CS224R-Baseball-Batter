@@ -14,8 +14,8 @@ class Logger:
         print('########################')
         self._summ_writer = SummaryWriter(log_dir, flush_secs=1, max_queue=1)
 
-    def log_scalar(self, scalar, name, step_):
-        self._summ_writer.add_scalar('{}'.format(name), scalar, step_)
+    def log_scalar(self, scalar, name, iter):
+        self._summ_writer.add_scalar('{}'.format(name), scalar, iter)
 
     def log_scalars(self, scalar_dict, group_name, step, phase):
         """Will log all scalars in the same plot."""

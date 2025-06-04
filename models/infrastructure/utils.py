@@ -22,10 +22,11 @@ def sample_trajectory(env, policy, max_path_length):
         actions.append(action)
 
         # Take a step in the environment with the action
-        next_observation, done, _ = env.step(action)
+        next_observation, reward, done, _ = env.step(action)
         
         # Record the results of taking the action
         steps += 1
+        rewards.append(reward)
         next_observations.append(next_observation)
         terminals.append(done)
         
@@ -55,7 +56,7 @@ def sample_trajectories(env, policy, min_timesteps_per_batch, max_path_length):
     while total_timesteps < min_timesteps_per_batch:
         path = sample_trajectory(env, policy, max_path_length)
         paths.append(path)
-        total_timesteps += len(path['actions'])
+        total_timesteps += len(path['rewards'])
 
     return paths, total_timesteps
 
@@ -76,11 +77,30 @@ def convert_rollouts(paths):
     into a numpy array of observations, actions, rewards, next_observations, and terminals
     suitable for training.
     """
-    observations = np.concatenate([path['observations'] for path in paths])
-    actions = np.concatenate([path['actions'] for path in paths])
-    rewards = np.concatenate([path['rewards'] for path in paths])
-    next_observations = np.concatenate([path['next_observations'] for path in paths])
-    terminals = np.concatenate([path['terminals'] for path in paths])
+
+    observations = np.array([
+    np.array(obs).reshape(-1)
+    for path in paths
+    for obs in path['observations']
+    ])
+
+    actions = np.array([
+        act for path in paths for act in path['actions']
+    ])
+
+    rewards = np.array([
+        r for path in paths for r in path['rewards']
+    ])
+
+    next_observations = np.array([
+        np.array(obs).reshape(-1)
+        for path in paths
+        for obs in path['next_observations']
+    ])
+
+    terminals = np.array([
+        t for path in paths for t in path['terminals']
+    ])
 
     return observations, actions, rewards, next_observations, terminals
 
@@ -92,7 +112,7 @@ def init_gpu(use_gpu=True, gpu_id=0):
     if torch.cuda.is_available() and use_gpu:
         device = torch.device("cuda:" + str(gpu_id))
         print("Using GPU id {}".format(gpu_id))
-    elif torch.backends.mps.is_available() and torch.backend.mps.is_built() and use_gpu:
+    elif torch.backends.mps.is_available() and torch.backends.mps.is_built() and use_gpu:
         device = torch.device("mps")
         print("Pytorch MPS backend is available, using it.")
     else:
@@ -100,6 +120,8 @@ def init_gpu(use_gpu=True, gpu_id=0):
         print("GPU not available, using CPU.")
     
     return device
+
+device = init_gpu()
 
 def from_numpy(*args, **kwargs):
     """

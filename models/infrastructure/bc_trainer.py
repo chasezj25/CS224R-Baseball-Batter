@@ -11,14 +11,16 @@ import torch
 import gym
 import numpy as np
 
-from models.infrastructure import torch_utils as ptu
+from models import envs
 from models.infrastructure.logger import Logger
 from models.infrastructure import utils
 
 
 class BCTrainer:
     """
-
+    A trainer class for behavior cloning (BC) that handles the training loop,
+    data collection, and logging of results. It initializes the environment,
+    sets up the agent, and manages the training process.
     """
     def __init__(self, params):
         self.params = params
@@ -30,8 +32,8 @@ class BCTrainer:
         torch.manual_seed(seed)
 
         # Make the environment (TODO: build custom environment for pandas robot with bat)
-        self.env = None
-        self.env.reset(seed=seed)
+        self.env = gym.make(self.params['env_name'])
+        self.env.reset()
 
         # Set the maximum length for episodes
         self.params['ep_len'] = self.params['ep_len'] or self.env.spec.max_episode_steps
@@ -50,55 +52,68 @@ class BCTrainer:
         agent_class = self.params['agent_class']
         self.agent = agent_class(self.env, self.params['agent_params'])
 
-    def run_training_loop(self, collect_policy, eval_policy, 
+    def run_training_loop(self, n_iter, collect_policy, eval_policy, 
                           initial_expertdata=None):
         """
+        Runs the training loop for the behavior cloning agent. It collects
+        trajectories from the environment, adds them to the replay buffer,
+        trains the agent, and logs the results. If DAgger is enabled, it will
+        also relabel the data with expert actions.
         """
 
         # Initialize variables for beginning of training
         self.start_time = time.time()
 
         print("Starting training loop...")
-        # Collect trajectories to be used for training
-        paths, envsteps_this_batch = self.collect_trajectories(
-            initial_expertdata,
-            collect_policy,
-        )
+        for iter in range(n_iter):
+            # Collect trajectories to be used for training
+            paths = self.collect_trajectories(
+                iter,
+                initial_expertdata,
+                collect_policy
+            )
 
-        # Add collected data to the replay buffer
-        print("Adding paths to replay buffer...")
-        self.agent.replay_buffer.add_paths(paths)
+            # Add collected data to the replay buffer
+            print("Adding paths to replay buffer...")
+            self.agent.add_to_replay_buffer(paths)
 
-        # Train the agent using the collected data
-        train_info = self.train_agent()
+            # Train the agent using the collected data
+            train_info = self.train_agent()
 
-        # Log the training information
-        print("Begin Logging...")
-        self.perform_logging(
-            iter, paths, eval_policy, train_info
-        )
+            # Log the training information
+            print("Begin Logging...")
+            self.perform_logging(
+                iter, paths, eval_policy, train_info
+            )
 
-        if self.params['save_params']:
-            self.agent.save('{}/policy.pt'.format(self.params['logdir'], iter))
+            if self.params['save_params']:
+                self.agent.save('{}/policy_iter_{}.pt'.format(self.params['logdir'], iter))
 
     
-    def collect_trajectories(self, iter, initial_expertdata, collect_policy):
+    def collect_trajectories(self, iter, initial_expertdata, collect_policy=None):
         """
         Collects trajectories from the environment using the specified policy.
         """
         print("Collecting trajectories...")
-        
-        with open(initial_expertdata, 'rb') as f:
-            paths = pickle.load(f)
+        if iter > 0 or initial_expertdata is None:
+            # Collect trajectories using the specified policy
+            paths, _ = utils.sample_trajectories(
+                self.env, collect_policy, self.params['num_agent_train_steps'], 
+                self.params['ep_len']
+            )
+        else:
+            with open(initial_expertdata, 'rb') as f:
+                paths = pickle.load(f)
 
         return paths
 
     def train_agent(self):
         """
+        Trains the agent using the collected data from the replay buffer.
         """
         print("Training agent...")
         all_logs = []
-        for _ in range(self.params['num_agent_train_steps_per_iter']):
+        for _ in range(self.params['num_agent_train_steps']):
 
             # Sample from replay buffer
             ob_batch, ac_batch, reward_batch, next_ob_batch, terminal_batch = self.agent.sample(
@@ -124,11 +139,11 @@ class BCTrainer:
 
         # Save evaluation metrics
         # Get the returns and episode lengths of all paths, for logging
-        train_returns = [path["reward"].sum() for path in paths]
-        eval_returns = [eval_path["reward"].sum() for eval_path in eval_paths]
+        train_returns = [np.sum(np.array(path["rewards"])).real for path in paths]
+        eval_returns = [np.sum(eval_path["rewards"]) for eval_path in eval_paths]
 
-        train_ep_lens = [len(path["reward"]) for path in paths]
-        eval_ep_lens = [len(eval_path["reward"]) for eval_path in eval_paths]
+        train_ep_lens = [len(path["rewards"]) for path in paths]
+        eval_ep_lens = [len(eval_path["rewards"]) for eval_path in eval_paths]
 
         # Define logged metrics
         logs = OrderedDict()
