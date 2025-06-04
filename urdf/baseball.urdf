@@ -1,0 +1,22 @@
+<?xml version="1.0" ?>
+<robot name="baseball">
+  <link name="baseball_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.1"/>
+      <inertia ixx="0.000071" iyy="0.000071" izz="0.000071" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/visual/Baseball_ball.obj" scale="1 1 1"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <sphere radius="0.0366"/>
+      </geometry>
+    </collision>
+  </link>
+</robot>

@@ -21,6 +21,12 @@ urdf_file = os.path.join(current_dir, "panda_arm_bat.urdf")
 # Load the URDF file
 robot = p.loadURDF(urdf_file, useFixedBase=True)
 
+#load the baseball
+baseball_start_pos = [1.0, 0.0, 1.0]
+baseball_start_orn = p.getQuaternionFromEuler([0, 0, 0])
+baseball_id = p.loadURDF("baseball.urdf", baseball_start_pos, baseball_start_orn)
+
+
 # Find the end effector link index (usually the last link in the URDF)
 end_effector_link_index = p.getNumJoints(robot) - 1
 
@@ -140,6 +146,12 @@ for frame in frames:
             force=200, # seems like default value is 500
             positionGain=0.1
         )
+
+    p.applyExternalForce(objectUniqueId=baseball_id,
+                     linkIndex=-1,  
+                     forceObj=[0,0, 9.81 *0.1 ], # note mass = 0.1
+                     posObj=[0,0,0],
+                     flags=p.LINK_FRAME)
 
     p.stepSimulation()
     time.sleep(0.05)  # Assuming 100Hz data frequency
