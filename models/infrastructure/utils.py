@@ -12,7 +12,7 @@ def sample_trajectory(env, policy, max_path_length):
     """
     steps = 0
     observations, actions, rewards, next_observations, terminals = [], [], [], [], []
-    observation = env.reset()
+    observation, _ = env.reset()
     
     while True:
         # Use most recent observation to get action
@@ -22,7 +22,7 @@ def sample_trajectory(env, policy, max_path_length):
         actions.append(action)
 
         # Take a step in the environment with the action
-        next_observation, reward, done, _ = env.step(action)
+        next_observation, reward, done, _, _ = env.step(action)
         
         # Record the results of taking the action
         steps += 1

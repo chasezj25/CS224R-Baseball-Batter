@@ -59,7 +59,7 @@ class ReplayBuffer():
         """
         Samples a random batch of data from the replay buffer.
         """
-        indices = np.random.permutation(self.observations.shape[0])[:batch_size]
+        indices = np.random.permutation(self.actions.shape[0])[:batch_size]
 
         return (
             self.observations[indices],

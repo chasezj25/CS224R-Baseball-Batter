@@ -24,13 +24,14 @@ def main():
     n_episodes = 5
     for ep in range(n_episodes):
         obs, _ = env.reset()
-        done = False
         total_reward = 0.0
-        while not done:
-            action, _ = model.predict(obs, deterministic=True)  # Use deterministic=True for evaluation
+        while True:
+            action, _ = model.predict(obs, deterministic=True)
             obs, reward, terminated, truncated, _ = env.step(action)
-            done = terminated or truncated
             total_reward += reward
+
+            if terminated or truncated:
+                break
 
             time.sleep(0.02)  # Slow down rendering if needed
 

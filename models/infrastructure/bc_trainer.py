@@ -8,7 +8,7 @@ from collections import OrderedDict
 import pickle
 import time
 import torch
-import gym
+import gymnasium as gym
 import numpy as np
 
 from models import envs
