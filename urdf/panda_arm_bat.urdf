@@ -3,23 +3,23 @@
 
 	<link name="base_box">
   		<inertial>
-    		<origin xyz="0 0 0.05" rpy="0 0 0"/> <!-- box center at half height -->
+    		<origin xyz="0 0 0.2" rpy="0 0 0"/> <!-- box center at half height -->
     		<mass value="1"/>
     		<inertia ixx="0.01" iyy="0.01" izz="0.01" ixy="0" ixz="0" iyz="0"/>
   		</inertial>
   		<visual>
-    		<origin xyz="0 0 0.05" rpy="0 0 0"/>
+    		<origin xyz="0 0 0.2" rpy="0 0 0"/>
     		<geometry>
-      			<box size="0.3 0.3 0.6"/> <!-- width, depth, height -->
+      			<box size="0.3 0.3 0.4"/> <!-- width, depth, height -->
     		</geometry>
    			<material name="gray">
       		<color rgba="0.5 0.5 0.5 1"/>
     		</material>
   		</visual>
   		<collision>
-    		<origin xyz="0 0 0.05" rpy="0 0 0"/>
+    		<origin xyz="0 0 0.2" rpy="0 0 0"/>
     		<geometry>
-      			<box size="0.1 0.1 0.6"/>
+      			<box size="0.1 0.1 0.4"/>
     		</geometry>
   		</collision>
 	</link>
@@ -184,7 +184,7 @@
 	<joint name="base_to_link0" type="fixed">
   		<parent link="base_box"/>
   		<child link="link0"/>
- 		<origin xyz="0 0 0.6" rpy="0 0 0"/> <!-- change box dim here -->
+ 		<origin xyz="0 0 0.4" rpy="0 0 0"/> <!-- change box dim here -->
 	</joint>
 	<joint name="joint1" type="revolute">
 		<safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-2.8973" soft_upper_limit="2.8973"/>

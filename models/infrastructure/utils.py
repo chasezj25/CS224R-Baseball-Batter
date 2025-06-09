@@ -78,29 +78,23 @@ def convert_rollouts(paths):
     suitable for training.
     """
 
-    observations = np.array([
-    np.array(obs).reshape(-1)
-    for path in paths
-    for obs in path['observations']
-    ])
-
-    actions = np.array([
-        act for path in paths for act in path['actions']
-    ])
-
-    rewards = np.array([
-        r for path in paths for r in path['rewards']
-    ])
-
-    next_observations = np.array([
-        np.array(obs).reshape(-1)
-        for path in paths
-        for obs in path['next_observations']
-    ])
-
-    terminals = np.array([
-        t for path in paths for t in path['terminals']
-    ])
+    # Each path is a dict with keys: 'session_swing', 'observations', 'actions', 'rewards', 'terminals'
+    observations = np.concatenate([np.array(path['observations']) for path in paths], axis=0)
+    actions = np.concatenate([np.array(path['actions']) for path in paths], axis=0)
+    rewards = np.concatenate([np.array(path['rewards']) for path in paths], axis=0)
+    # If 'next_observations' is not present, infer from 'observations'
+    if 'next_observations' in paths[0]:
+        next_observations = np.concatenate([np.array(path['next_observations']) for path in paths], axis=0)
+    else:
+        next_observations = np.concatenate(
+            [np.array(path['observations'])[1:] for path in paths if len(path['observations']) > 1], axis=0
+        )
+        # Pad last next_observation with zeros if needed
+        if len(next_observations) < len(observations):
+            pad_shape = observations.shape[1:]
+            pad = np.zeros(pad_shape)
+            next_observations = np.vstack([next_observations, pad])
+    terminals = np.concatenate([np.array(path['terminals']) for path in paths], axis=0)
 
     return observations, actions, rewards, next_observations, terminals
 

@@ -14,7 +14,7 @@ import numpy as np
 from models import envs
 from models.infrastructure.logger import Logger
 from models.infrastructure import utils
-
+from models.envs.panda_hit_ball_env import PandaSwingBallEnv
 
 class BCTrainer:
     """
@@ -30,6 +30,12 @@ class BCTrainer:
         seed = self.params['seed']
         np.random.seed(seed)
         torch.manual_seed(seed)
+
+        gym.register(
+            id=params['env_name'],
+            entry_point="models.envs.panda_hit_ball_env:PandaSwingBallEnv",
+            max_episode_steps=200,
+        )
 
         # Make the environment (TODO: build custom environment for pandas robot with bat)
         self.env = gym.make(self.params['env_name'])

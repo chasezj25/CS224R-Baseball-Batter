@@ -3,12 +3,16 @@ Runs behavior cloning and DAgger for SwingEnv. Credit to
 original authors of homework 1 for the structure of this code.
 """
 
+import sys
 import os
+sys.path.insert(0, os.path.abspath("."))  # Add repo root to path
+
 import time
 import argparse
 
 from models.agents.bc_agent import BCAgent
 from models.infrastructure.bc_trainer import BCTrainer
+from models.envs.panda_hit_ball_env import PandaSwingBallEnv
 
 
 def run_bc(params):
@@ -59,7 +63,7 @@ def main():
     parser.add_argument('--exp_name', '-env', type=str, 
                         default='bc_experiment', required=True)
     parser.add_argument('--env_name', '-env_name', type=str,
-                        default='SwingPanda-v0', required=True)
+                        default='custom/PandaSwingBall-v0', required=True)
     parser.add_argument('--do_dagger', action='store_true')
     parser.add_argument('--ep_len', type=int, default=200)
 
@@ -106,7 +110,7 @@ def main():
     #         is required to train the policy on the expert data.')
         
     # Director for logging results
-    data_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../results')
+    data_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../logs/bc')
     if not os.path.exists(data_path):
         os.makedirs(data_path)
     logdir = args.exp_name + '_' + time.strftime('%Y-%m-%d_%H-%M-%S')
