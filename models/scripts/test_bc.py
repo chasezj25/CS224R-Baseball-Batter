@@ -37,7 +37,7 @@ def main():
 
     # Recreate the BC policy and load parameters
     policy = BCPolicy(obs_dim, action_dim, n_layers=3, hidden_dim=32)
-    policy.load_state_dict(torch.load("policy_iter_9.pt", map_location=device))
+    policy.load_state_dict(torch.load("policy_iter_0.pt", map_location=device))
     policy.to(device)
     policy.eval()
 
