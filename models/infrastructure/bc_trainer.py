@@ -99,6 +99,13 @@ class BCTrainer:
     def collect_trajectories(self, iter, initial_expertdata, collect_policy=None):
         """
         Collects trajectories from the environment using the specified policy.
+
+        ``initial_expertdata`` may be:
+          - a file path string (pkl file) — loaded with pickle on the first
+            iteration only (existing behaviour);
+          - a callable / iterable that generates expert paths — called /
+            iterated on the first iteration (raw-data pipeline support); or
+          - None — always collect from the environment.
         """
         print("Collecting trajectories...")
         if iter > 0 or initial_expertdata is None:
@@ -107,9 +114,15 @@ class BCTrainer:
                 self.env, collect_policy, self.params['num_agent_train_steps'], 
                 self.params['ep_len']
             )
-        else:
+        elif callable(initial_expertdata):
+            # Raw-data pipeline: call it to get a list of paths
+            paths = list(initial_expertdata())
+        elif isinstance(initial_expertdata, str):
             with open(initial_expertdata, 'rb') as f:
                 paths = pickle.load(f)
+        else:
+            # Assume it's already a list/iterable of path dicts
+            paths = list(initial_expertdata)
 
         return paths
 

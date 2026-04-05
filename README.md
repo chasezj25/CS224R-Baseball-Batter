@@ -19,25 +19,76 @@ models/
   envs/          # PandaSwingBallEnv (PyBullet simulation)
   infrastructure/
     bc_trainer.py     # RL-env-based BC trainer (uses gym environment)
-    mocap_dataset.py  # PyTorch Dataset for MoCap swing data
+    mocap_dataset.py  # PyTorch Dataset (pkl OR raw zip — no pkl required)
     replay_buffer.py  # Experience replay buffer
     utils.py          # Sampling utilities
   scripts/
     generate_demo_data.py  # Synthetic swing generator for testing
-    run_mocap_bc.py        # MoCap BC training + evaluation
+    run_mocap_bc.py        # MoCap BC training + evaluation (pkl or raw)
     visualize_swing.py     # Rollout visualization
     run_bc.py              # Env-based BC trainer entry point
     run_ppo.py             # PPO training
     run_sac.py             # SAC training
 preprocess/
-  gen_bat_data.py   # MoCap CSV -> bat_data_100hz.pkl
-  filter_data.py    # Filter left-handed swings
-  sort_data.py      # Sort / organize raw data
+  raw_data_pipeline.py   # Streams episodes from landmarks.zip (no pkl needed)
+  gen_sim_expert_data.py # Raw MoCap -> PyBullet IK -> expert_sim_data.pkl
+  gen_bat_data.py        # MoCap CSV -> bat_data_100hz.pkl (legacy)
+  filter_data.py         # Filter left-handed swings
+  sort_data.py           # Sort / organize raw data
 ```
 
 ---
 
 ## Behavior Cloning from Motion Capture
+
+### Working directly with raw data (no pkl file needed)
+
+The entire pipeline now works directly from the raw zip archives in
+`data/data/full_sig/` — **no intermediate pickle files are required**.
+
+#### Raw data directory layout
+
+```
+data/data/full_sig/
+  landmarks.zip       <- bat + body landmark positions (streamed directly)
+  joint_angles.zip    <- joint angles (used by legacy sort_data.py)
+  joint_velos.zip     <- joint velocities (used by legacy sort_data.py)
+```
+
+#### Generating simulation expert data from raw MoCap
+
+```bash
+# Produces expert_sim_data.pkl with observations/actions in the Panda sim's
+# coordinate space (14-dim obs, 7-dim joint-delta actions) via PyBullet IK.
+python preprocess/gen_sim_expert_data.py \
+    --data_dir data/data/full_sig \
+    --output expert_sim_data.pkl \
+    --urdf models/envs/panda_arm_bat.urdf
+
+# Optionally limit to right-handed swings via metadata filter:
+python preprocess/gen_sim_expert_data.py \
+    --data_dir  data/data/full_sig \
+    --eligible  eligible_swings.csv \
+    --output    expert_sim_data.pkl
+```
+
+The output is immediately usable with the simulation BC trainer:
+```bash
+python models/scripts/run_bc.py \
+    --expert_data expert_sim_data.pkl \
+    --exp_name sim_bc_from_raw
+```
+
+#### Training the MoCap BC policy (bat-pose imitation) from raw data
+
+```bash
+# Read directly from landmarks.zip — no bat_data_100hz.pkl needed:
+python models/scripts/run_mocap_bc.py \
+    --raw_data_dir data/data/full_sig \
+    --exp_name raw_bc_run \
+    --n_epochs 200 \
+    --batch_size 256
+```
 
 ### Data format
 
@@ -68,14 +119,20 @@ terminals        : list of T ints (0 or 1)
 
 **Step 1 — Prepare data**
 
-*Option A: Real MoCap data*
+*Option A: Work directly from raw data (recommended — no pkl required)*
+```bash
+# The landmarks.zip archive is read in-place; nothing to extract.
+# Pass --raw_data_dir directly to run_mocap_bc.py or gen_sim_expert_data.py.
+```
+
+*Option B: Generate legacy pkl from raw MoCap CSVs*
 ```bash
 cd preprocess
 python filter_data.py      # filter left-handed swings
 python gen_bat_data.py     # produce bat_data_100hz.pkl
 ```
 
-*Option B: Synthetic demo data (no MoCap files needed)*
+*Option C: Synthetic demo data (no MoCap files needed)*
 ```bash
 python models/scripts/generate_demo_data.py \
     --output bat_data_100hz.pkl \
@@ -85,6 +142,14 @@ python models/scripts/generate_demo_data.py \
 
 **Step 2 — Train the BC policy**
 ```bash
+# Raw data (no pkl needed):
+python models/scripts/run_mocap_bc.py \
+    --raw_data_dir data/data/full_sig \
+    --exp_name my_experiment \
+    --n_epochs 200 \
+    --batch_size 256
+
+# Or from a pre-built pkl:
 python models/scripts/run_mocap_bc.py \
     --data bat_data_100hz.pkl \
     --exp_name my_experiment \

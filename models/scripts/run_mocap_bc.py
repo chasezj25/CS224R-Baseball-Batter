@@ -3,12 +3,17 @@ run_mocap_bc.py
 
 Standalone behavior cloning trainer for motion capture baseball swing data.
 
-Trains an MLP policy (state → next bat pose) directly on the preprocessed
-bat_data_100hz.pkl file without requiring a PyBullet simulation.  The trained
-model can then be used for rollout evaluation and visualization.
+Trains an MLP policy (state → next bat pose) directly on MoCap swing data
+without requiring a PyBullet simulation.  The trained model can then be used
+for rollout evaluation and visualization.
 
-Data format (from preprocess/gen_bat_data.py or generate_demo_data.py)
------------------------------------------------------------------------
+Supports two data sources (mutually exclusive):
+  --data <pkl>           : load a pre-processed bat_data_100hz.pkl file
+  --raw_data_dir <dir>   : read directly from landmarks.zip in the given
+                           directory (no pkl file required)
+
+Data format
+-----------
 Each episode is a dict:
     observations     : list of T × [k × 16] stacked-frame feature vectors
     next_observations: same, shifted by one step
@@ -24,19 +29,19 @@ Observation features per frame (16 features):
     12-14: ball contact position (fixed per swing)
     15:    hit flag
 
-Usage
------
-Generate demo data first (if real MoCap pkl is unavailable):
-
-    python models/scripts/generate_demo_data.py --output bat_data_100hz.pkl
-
-Then train:
-
+Usage (pkl file)
+----------------
     python models/scripts/run_mocap_bc.py \\
         --data bat_data_100hz.pkl \\
         --exp_name my_run \\
-        --n_epochs 100 \\
-        --batch_size 256
+        --n_epochs 100
+
+Usage (raw data — no pkl needed)
+---------------------------------
+    python models/scripts/run_mocap_bc.py \\
+        --raw_data_dir data/data/full_sig \\
+        --exp_name raw_run \\
+        --n_epochs 100
 
 Outputs (written to logs/mocap_bc/<exp_name>/):
     policy.pt          : saved model weights
@@ -58,8 +63,17 @@ from torch.utils.data import DataLoader
 sys.path.insert(0, os.path.abspath("."))
 
 from models.agents.bc_agent import BCPolicy
-from models.infrastructure.mocap_dataset import load_mocap_datasets, FEATURES_PER_FRAME, HISTORY_LEN
+from models.infrastructure.mocap_dataset import (
+    load_mocap_datasets,
+    load_mocap_datasets_raw,
+    FEATURES_PER_FRAME,
+    HISTORY_LEN,
+)
 
+
+# Maximum finite-difference velocity magnitude to allow before clipping (m/s or deg/s
+# depending on feature). Prevents rollout divergence from accumulated error.
+_MAX_ROLLOUT_VELOCITY = 1e4
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Autoregressive rollout evaluation
@@ -131,7 +145,7 @@ def rollout_episode(policy, episode, norm_stats, device):
 
             # Finite-difference velocities, clipped to prevent blow-up
             vel = (act_pred[:6] - prev_raw[:6]) / dt
-            new_raw[6:12] = np.clip(vel, -1e4, 1e4)
+            new_raw[6:12] = np.clip(vel, -_MAX_ROLLOUT_VELOCITY, _MAX_ROLLOUT_VELOCITY)
 
             # Ball pos and hit flag: propagate from ground truth when available
             if t + 1 < len(raw_obs):
@@ -157,12 +171,23 @@ def train(params):
     print(f"Device: {device}")
 
     # ── Data ──────────────────────────────────────────────────────────────────
-    print("Loading MoCap dataset …")
-    train_ds, test_ds = load_mocap_datasets(
-        data_path=params['data'],
-        train_frac=params['train_frac'],
-        seed=params['seed'],
-    )
+    raw_data_dir = params.get('raw_data_dir')
+    if raw_data_dir:
+        print(f"Loading MoCap dataset from raw zip archives: {raw_data_dir} …")
+        train_ds, test_ds = load_mocap_datasets_raw(
+            data_dir=raw_data_dir,
+            train_frac=params['train_frac'],
+            seed=params['seed'],
+            eligible_swings_path=params.get('eligible_swings'),
+            metadata_path=params.get('metadata'),
+        )
+    else:
+        print("Loading MoCap dataset from pkl …")
+        train_ds, test_ds = load_mocap_datasets(
+            data_path=params['data'],
+            train_frac=params['train_frac'],
+            seed=params['seed'],
+        )
     print(f"  Train: {len(train_ds)} samples | Test: {len(test_ds)} samples")
     print(f"  ob_dim={train_ds.ob_dim}  ac_dim={train_ds.ac_dim}")
 
@@ -266,8 +291,30 @@ def main():
     parser = argparse.ArgumentParser(
         description="Train a behavior-cloning policy on MoCap baseball swing data."
     )
-    parser.add_argument('--data', '-d', type=str, required=True,
-                        help='Path to bat_data_100hz.pkl.')
+
+    # ── Data source: either pkl OR raw zip dir ─────────────────────────────
+    data_group = parser.add_mutually_exclusive_group(required=True)
+    data_group.add_argument(
+        '--data', '-d', type=str, default=None,
+        help='Path to bat_data_100hz.pkl (pre-processed pickle file).',
+    )
+    data_group.add_argument(
+        '--raw_data_dir', type=str, default=None,
+        help='Directory containing landmarks.zip. '
+             'Reads raw MoCap data directly — no pkl file required.',
+    )
+
+    # Optional filters when using --raw_data_dir
+    parser.add_argument(
+        '--eligible_swings', type=str, default=None,
+        help='Path to eligible_swings.csv (filter for --raw_data_dir).',
+    )
+    parser.add_argument(
+        '--metadata', type=str, default=None,
+        help='Path to metadata.csv (filter for --raw_data_dir when '
+             '--eligible_swings is not provided).',
+    )
+
     parser.add_argument('--exp_name', type=str, default='mocap_bc',
                         help='Experiment name for the log directory.')
 
