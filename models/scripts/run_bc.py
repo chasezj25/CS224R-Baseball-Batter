@@ -17,10 +17,9 @@ from models.envs.panda_hit_ball_env import PandaSwingBallEnv
 
 def run_bc(params):
     """
-    # The run_bc function sets up the agent parameters, initializes the BCTrainer,
-    # and starts the training loop for behavior cloning (and optionally DAgger).
-    # It prepares the agent's neural network architecture, learning rate, and buffer size,
-    # then passes these to the BCTrainer, which manages the training process.
+    Sets up agent parameters, initializes BCTrainer, and starts the training loop.
+    Prepares the neural network architecture, learning rate, and buffer size, then
+    passes them to BCTrainer which manages the full training process.
     """
 
     #######################
@@ -52,9 +51,8 @@ def run_bc(params):
 
 def main():
     """
-    # The main function parses command-line arguments, sets up logging directories,
-    # checks DAgger and iteration constraints, and then calls the run_bc function
-    # to start training the behavior cloning agent.
+    Parses command-line arguments, sets up the logging directory, and launches
+    the behavior cloning training run.
     """
 
     parser = argparse.ArgumentParser()
@@ -97,19 +95,7 @@ def main():
     # Convert arguments to dictionary for easy reference
     params = vars(args)
 
-    ##################################
-    ### CREATE DIRECTORY FOR LOGGING
-    ##################################
-    
-    # if args.do_dagger:
-    #     assert args.n_iter > 1, ('DAgger requires more than one iteration of \
-    #         training to iteratively collect data from the expert and train.')
-
-    # else:
-    #     assert args.n_iter == 1, ('Without DAgger, only one iteration of training \
-    #         is required to train the policy on the expert data.')
-        
-    # Director for logging results
+    # Create the logging directory
     data_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../logs/bc')
     if not os.path.exists(data_path):
         os.makedirs(data_path)

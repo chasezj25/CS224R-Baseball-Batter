@@ -127,8 +127,7 @@ class BCAgent:
         return log
     
     def add_to_replay_buffer(self, paths):
-        """
-        """
+        """Add a list of trajectory rollouts to the replay buffer."""
         self.replay_buffer.add_rollouts(paths)
 
     def sample(self, batch_size):

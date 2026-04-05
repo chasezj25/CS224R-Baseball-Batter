@@ -11,7 +11,6 @@ from stable_baselines3.common.callbacks import EvalCallback
 
 from models.envs.panda_hit_ball_env import PandaSwingBallEnv
 
-from stable_baselines3.common.callbacks import EvalCallback
 
 def main():
     # Register the environment

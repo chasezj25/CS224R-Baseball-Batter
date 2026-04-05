@@ -28,10 +28,9 @@ def sample_trajectory(env, policy, max_path_length):
         steps += 1
         rewards.append(reward)
         next_observations.append(next_observation)
-        terminals.append(done)
-        
-        # Determine if rollout is at end state
-        rollout_done = 1 if done or steps >= max_path_length else 0
+
+        # Mark the rollout as done if the episode ended or max steps reached
+        rollout_done = done or steps >= max_path_length
         terminals.append(rollout_done)
 
         if rollout_done:

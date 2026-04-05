@@ -1,3 +1,13 @@
+"""
+gen_bat_data.py
+
+Reads eligible right-handed swings from eligible_swings.csv and the full
+landmark CSV, then produces two pickle files:
+  - bat_data.pkl        : raw per-frame bat data keyed by session_swing
+  - bat_data_100hz.pkl  : downsampled to 100 Hz with observations, actions,
+                          rewards, and terminals ready for BC training
+"""
+
 import numpy as np
 import math
 import pickle
@@ -10,6 +20,7 @@ HIT_COEF = 5
 EUCLID_DIST_COEF = -2.5
 
 def main():
+    """Parse eligible swings and landmark data, then save bat_data.pkl and bat_data_100hz.pkl."""
     session_swings = set()
     with open("../eligible_swings.csv") as file:
         csv_reader = csv.reader(file, delimiter=',')
@@ -44,20 +55,20 @@ def main():
                     final_data[sess] = []
                 time = float(line[keys["time"]])
                 contact_time = float(line[keys["contact_time"]])
-                sweet_spot_x = try_float(final_data, sess, line[keys["sweet_spot_x"]], "x")
-                sweet_spot_y = try_float(final_data, sess, line[keys["sweet_spot_y"]], "y")
-                sweet_spot_z = try_float(final_data, sess, line[keys["sweet_spot_z"]], "z")
+                sweet_spot_x = safe_float(final_data, sess, line[keys["sweet_spot_x"]], "x")
+                sweet_spot_y = safe_float(final_data, sess, line[keys["sweet_spot_y"]], "y")
+                sweet_spot_z = safe_float(final_data, sess, line[keys["sweet_spot_z"]], "z")
                 
-                lhjc_x = try_float(final_data, sess,line[keys["lhjc_x"]], "lhjc_x") # left hand joint center
-                lhjc_y = try_float(final_data, sess,line[keys["lhjc_y"]], "lhjc_y")
-                lhjc_z = try_float(final_data, sess,line[keys["lhjc_z"]], "lhjc_z")
+                lhjc_x = safe_float(final_data, sess,line[keys["lhjc_x"]], "lhjc_x") # left hand joint center
+                lhjc_y = safe_float(final_data, sess,line[keys["lhjc_y"]], "lhjc_y")
+                lhjc_z = safe_float(final_data, sess,line[keys["lhjc_z"]], "lhjc_z")
 
-                lajc_x = try_float(final_data, sess,line[keys["lajc_x"]], "lajc_x")
-                lajc_y = try_float(final_data, sess,line[keys["lajc_y"]], "lajc_y")
-                lajc_z = try_float(final_data, sess,line[keys["lajc_z"]], "lajc_z")
-                rajc_x = try_float(final_data, sess,line[keys["rajc_x"]], "rajc_x")
-                rajc_y = try_float(final_data, sess,line[keys["rajc_y"]], "rajc_y")
-                rajc_z = try_float(final_data, sess,line[keys["rajc_z"]], "rajc_z")
+                lajc_x = safe_float(final_data, sess,line[keys["lajc_x"]], "lajc_x")
+                lajc_y = safe_float(final_data, sess,line[keys["lajc_y"]], "lajc_y")
+                lajc_z = safe_float(final_data, sess,line[keys["lajc_z"]], "lajc_z")
+                rajc_x = safe_float(final_data, sess,line[keys["rajc_x"]], "rajc_x")
+                rajc_y = safe_float(final_data, sess,line[keys["rajc_y"]], "rajc_y")
+                rajc_z = safe_float(final_data, sess,line[keys["rajc_z"]], "rajc_z")
 
                 x_ang, y_ang, z_ang = calc_pose(np.array([lhjc_x, lhjc_y, lhjc_z]), np.array([sweet_spot_x, sweet_spot_y, sweet_spot_z]))
                 x_vel = 0
@@ -164,6 +175,13 @@ def main():
         pickle.dump(low_hz, file)
 
 def gen_observation(episodes, index, ball_pos, k=5):
+    """
+    Build a stacked observation from k consecutive frames ending at index.
+
+    Each frame contains sweet-spot position/orientation/velocity (12 values),
+    ball position (3 values), and a binary hit flag (1 value). Frames before
+    the start of the episode are filled by repeating the earliest available frame.
+    """
     ret = []
     
     for i in range(k):
@@ -201,24 +219,26 @@ def gen_observation(episodes, index, ball_pos, k=5):
 
 
 def average(collect):
+    """Return a dict whose values are the mean of each key across all frames."""
     out = {}
     for key in collect[0].keys():
-        sum = 0
-        for interval in collect:
-            sum += interval[key]
-        avg = sum / len(collect)
-        out[key] = avg
+        total = sum(frame[key] for frame in collect)
+        out[key] = total / len(collect)
     return out
 
-#In case there is gaps in the data
-def try_float(final_data, sess, str, key):
+# In case there are gaps in the data, fall back to the previous valid value
+def safe_float(final_data, sess, value_str, key):
+    """Parse value_str as float; on failure return the last stored value for key."""
     try:
-        ret = float(str)
-    except:
-        ret = final_data[sess][-1][key]
-    return ret
+        return float(value_str)
+    except ValueError:
+        return final_data[sess][-1][key]
 
 def calc_pose(left_hand, bat_sweet_spot):
+    """
+    Compute Euler-style orientation angles (x, y, z) for the bat axis defined
+    by the vector from left_hand to bat_sweet_spot.
+    """
     axis = bat_sweet_spot - left_hand
     axis = axis / (np.sqrt(np.dot(axis, axis)))
     x = np.array([1,0,0])
@@ -226,11 +246,8 @@ def calc_pose(left_hand, bat_sweet_spot):
     z = np.array([0,0,1])
     proj_yz = proj(axis, y, z)
     proj_yz = np.array([proj_yz[1], proj_yz[2]])
-    #proj_xz = proj(axis, x, z)
-    #proj_xz = np.array([proj_xz[0], proj_xz[2]])
     proj_yx = proj(axis, x, y)
     proj_yx = np.array([proj_yx[0], proj_yx[1]])
-    #z_2d = np.array([0,1])\
     y_2d_proj_yz = np.array([1,0])
     y_2d_proj_yx = np.array([0,1])
     multiplier = 1
@@ -246,16 +263,17 @@ def calc_pose(left_hand, bat_sweet_spot):
     return angle_x, angle_y, angle_z
 
 def proj(axis, axis_1, axis_2):
+    """Project axis onto the plane spanned by axis_1 and axis_2."""
     a1 = (np.dot(axis, axis_1) / np.dot(axis_1, axis_1)) * axis_1
     a2 = (np.dot(axis, axis_2) / np.dot(axis_2, axis_2)) * axis_2
-    return  a1 + a2
-    #stationary = np.array([0,0,1])
-    #return (180 / math.pi) * np.arccos(np.dot(a, stationary) / (np.sqrt(np.dot(a,a)) * np.sqrt(np.dot(stationary,stationary)))) 
+    return a1 + a2
 
-def cos_deg(a,b):
+def cos_deg(a, b):
+    """Return the angle in degrees between 2-D vectors a and b."""
     return (180 / math.pi) * np.arccos(np.dot(a, b) / (np.sqrt(np.dot(a,a)) * np.sqrt(np.dot(b,b))))
 
-def cross_prod(a,b):
+def cross_prod(a, b):
+    """Return the scalar 2-D cross product of vectors a and b."""
     return (a[0] * b[1]) - (a[1] * b[0])
 
 if __name__ == "__main__":

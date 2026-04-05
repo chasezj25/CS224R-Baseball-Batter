@@ -16,8 +16,10 @@ from models.agents.bc_agent import BCPolicy
 # --- Main testing function ---
 def main():
     # Select device
-    device_str = "mps" if torch.has_mps else "cpu"
-    global device
+    if torch.backends.mps.is_available() and torch.backends.mps.is_built():
+        device_str = "mps"
+    else:
+        device_str = "cpu"
     device = torch.device(device_str)
     print(f"Using device: {device}")
 
@@ -56,7 +58,7 @@ def main():
 
             time.sleep(0.01)  # slow down for visualization
 
-            print(f"Episode {ep + 1}: Total Reward = {total_reward:.2f}")
+        print(f"Episode {ep + 1}: Total Reward = {total_reward:.2f}")
 
     env.close()
 

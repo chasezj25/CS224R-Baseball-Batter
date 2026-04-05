@@ -1,8 +1,8 @@
 """
 panda_hit_ball_env.py
 
-This module defines a custom OpenAI Gym environment for simulating a 7-DOF Panda robot arm swinging a bat to hit a ball using PyBullet physics. 
-The environment provides observations, actions, and rewards suitable for reinforcement learning tasks involving robotic manipulation and dynamic interaction with objects.
+Custom Gym environment for a 7-DOF Panda robot arm swinging a bat to hit a ball
+using PyBullet physics. Provides observations, actions, and rewards for RL training.
 """
 
 import gymnasium as gym
@@ -14,69 +14,11 @@ import os
 
 class PandaSwingBallEnv(gym.Env):
     """
-    Custom Gym environment for simulating a Panda robot arm swinging a bat to hit a baseball using PyBullet.
+    Gym environment where a Panda robot arm swings a bat to hit a baseball.
 
-    This environment is designed for reinforcement learning tasks where the agent controls the 7-DOF Panda arm
-    to swing a bat and hit a ball. The environment provides observations including joint angles, bat and ball
-    positions, and a flag indicating if the ball has been hit. The reward function encourages hitting the ball
-    with speed and distance, and penalizes distance between the bat and ball before hitting.
-
-    Attributes:
-        metadata (dict): Rendering modes supported by the environment.
-        step_counter (int): Counts the number of steps taken in the current episode.
-        max_steps (int): Maximum number of steps per episode.
-        time_step (float): Simulation time step.
-        physics_client (int): PyBullet physics client ID.
-        num_joints (int): Number of controllable joints in the robot.
-        ee_link_index (int): Index of the end-effector (bat tip) link.
-        action_space (gym.Space): Action space (joint angle deltas).
-        observation_space (gym.Space): Observation space (joint angles, bat/ball positions, hit flag).
-        ball_hit (bool): Whether the ball has been hit.
-        ball_hit_position (np.ndarray or None): Position where the ball was hit.
-        prev_bat_pos (np.ndarray or None): Previous bat tip position for speed calculation.
-        delta_t (float): Time delta for bat speed calculation.
-
-    Methods:
-        __init__():
-            Initializes the environment, PyBullet simulation, and spaces.
-
-        _load_env():
-            Loads the plane, robot arm with bat, and baseball into the simulation.
-
-        reset(seed=None, options=None):
-            Resets the environment to the initial state.
-            Returns:
-                obs (np.ndarray): Initial observation.
-                info (dict): Additional info (empty).
-
-        step(action):
-            Applies the action, steps the simulation, computes reward and checks termination.
-            Args:
-                action (np.ndarray): Joint angle deltas.
-            Returns:
-                obs (np.ndarray): Next observation.
-                reward (float): Reward for the step.
-                done (bool): Whether the episode is terminated.
-                truncated (bool): Whether the episode is truncated (always False).
-                info (dict): Additional info (empty).
-
-        _compute_reward():
-            Computes the reward based on bat-ball distance, bat speed, and ball velocity.
-            Returns:
-                reward (float): Calculated reward.
-
-        _check_termination():
-            Checks if the episode should terminate (ball hit ground or max steps).
-            Returns:
-                done (bool): Termination flag.
-
-        _get_observation():
-            Constructs the observation vector (joint angles, bat/ball positions, hit flag).
-            Returns:
-                obs (np.ndarray): Normalized observation.
-
-        close():
-            Disconnects the PyBullet simulation.
+    Observations include joint angles, bat tip position, ball position, and a
+    binary flag for whether the ball has been hit. The reward encourages fast,
+    accurate contact and penalises the distance between bat and ball before contact.
     """
     metadata = {"render.modes": ["human"]}
 

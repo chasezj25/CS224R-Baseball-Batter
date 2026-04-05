@@ -1,57 +1,29 @@
-import csv
 """
-Filter out the left handed swings for now.
+organize_data.py
 
-KEYS
-'session_swing',
- 'session_mass_lbs', 
- 'session_height_in', 
- 'athlete_age', 
- 'highest_playing_level', 
- 'hitter_side', 
- 'bat_weight_oz', 
- 'bat_length_in', 
- 'bat_speed_mph_max_x', 
- 'blast_bat_speed_mph_x', 
- 'exit_velo_mph_x', 
- 'user', 
- 'session'
+Runs the full preprocessing pipeline in order:
+  1. filter_data   – filters to right-handed swings → eligible_swings.csv
+  2. gen_bat_data  – extracts bat trajectories → bat_data.pkl / bat_data_100hz.pkl
+  3. sort_data     – merges joint angles + velocities → sorted_data.pkl
 """
 
-filter_out = {
-    "hitter_side": "L"
-}
+import runpy
+import os
+
+SCRIPTS = [
+    "filter_data.py",
+    "gen_bat_data.py",
+    "sort_data.py",
+]
+
+
 def main():
-    with open("../data/data/metadata.csv") as file:
-        csv_reader = csv.reader(file, delimiter=',')
-        first = True
-        keys = {}
-        finals = []
-        for row in  csv_reader:
-            #print(row)
-            if first:
-                first = False
-                finals.append(row)
-                for i in range(len(row)):
-                    keys[row[i]] = i
-            else:
-                add = True
-                for key in filter_out.keys():
-                    if row[keys[key]] == filter_out[key]:
-                        add = False
-                        break
-                if add:
-                    finals.append(row)
-        
-    with open("../eligible_swings.csv", "w") as file:
-        csv_writer = csv.writer(file, delimiter=',')
-        for line in finals:
-            csv_writer.writerow(line)
-
-
-
-            
-            
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    for script in SCRIPTS:
+        path = os.path.join(script_dir, script)
+        print(f"Running {script}...")
+        runpy.run_path(path, run_name="__main__")
+        print(f"Finished {script}.\n")
 
 
 if __name__ == "__main__":

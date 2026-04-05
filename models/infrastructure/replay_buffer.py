@@ -23,13 +23,10 @@ class ReplayBuffer():
         self.terminals = None
 
     def __len__(self):
-        """
-        Returns the number of paths in the replay buffer.
-        """
-        if self.observations:
-            return len(self.observations.shape[0])
-        else:
-            return 0
+        """Returns the number of stored transitions."""
+        if self.observations is not None:
+            return self.observations.shape[0]
+        return 0
         
     def add_rollouts(self, paths):
         """

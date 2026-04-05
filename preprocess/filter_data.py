@@ -1,57 +1,22 @@
-import csv
 """
-Filter out the left handed swings for now.
+filter_data.py
 
-KEYS
-'session_swing',
- 'session_mass_lbs', 
- 'session_height_in', 
- 'athlete_age', 
- 'highest_playing_level', 
- 'hitter_side', 
- 'bat_weight_oz', 
- 'bat_length_in', 
- 'bat_speed_mph_max_x', 
- 'blast_bat_speed_mph_x', 
- 'exit_velo_mph_x', 
- 'user', 
- 'session'
+Reads the swing metadata CSV and removes left-handed hitters, writing the
+remaining rows to eligible_swings.csv for use in downstream preprocessing.
 """
 
-filter_out = {
-    "hitter_side": "L"
-}
+import pandas as pd
+
+# Only right-handed swings are supported in this pipeline
+FILTER_COLUMN = "hitter_side"
+FILTER_VALUE = "L"
+
+
 def main():
-    with open("../data/data/metadata.csv") as file:
-        csv_reader = csv.reader(file, delimiter=',')
-        first = True
-        keys = {}
-        finals = []
-        for row in  csv_reader:
-            #print(row)
-            if first:
-                first = False
-                finals.append(row)
-                for i in range(len(row)):
-                    keys[row[i]] = i
-            else:
-                add = True
-                for key in filter_out.keys():
-                    if row[keys[key]] == filter_out[key]:
-                        add = False
-                        break
-                if add:
-                    finals.append(row)
-        
-    with open("../eligible_swings.csv", "w") as file:
-        csv_writer = csv.writer(file, delimiter=',')
-        for line in finals:
-            csv_writer.writerow(line)
-
-
-
-            
-            
+    df = pd.read_csv("../data/data/metadata.csv")
+    df = df[df[FILTER_COLUMN] != FILTER_VALUE]
+    df.to_csv("../eligible_swings.csv", index=False)
+    print(f"Kept {len(df)} right-handed swings.")
 
 
 if __name__ == "__main__":
