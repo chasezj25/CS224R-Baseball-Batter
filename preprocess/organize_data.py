@@ -18,6 +18,9 @@ SCRIPTS = [
 
 
 def main():
+    # Each script is run in its own namespace via runpy; they are independent
+    # because they communicate through files (eligible_swings.csv, *.pkl)
+    # rather than shared in-process state.
     script_dir = os.path.dirname(os.path.abspath(__file__))
     for script in SCRIPTS:
         path = os.path.join(script_dir, script)

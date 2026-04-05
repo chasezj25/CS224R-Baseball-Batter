@@ -23,7 +23,7 @@ class ReplayBuffer():
         self.terminals = None
 
     def __len__(self):
-        """Returns the number of stored transitions."""
+        """Returns the total number of stored transitions across all rollouts."""
         if self.observations is not None:
             return self.observations.shape[0]
         return 0
