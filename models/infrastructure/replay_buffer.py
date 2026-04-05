@@ -24,10 +24,10 @@ class ReplayBuffer():
 
     def __len__(self):
         """
-        Returns the number of paths in the replay buffer.
+        Returns the number of transitions stored in the replay buffer.
         """
-        if self.observations:
-            return len(self.observations.shape[0])
+        if self.observations is not None:
+            return self.observations.shape[0]
         else:
             return 0
         

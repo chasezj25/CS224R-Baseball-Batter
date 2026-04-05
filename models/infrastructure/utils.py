@@ -32,7 +32,6 @@ def sample_trajectory(env, policy, max_path_length):
         
         # Determine if rollout is at end state
         rollout_done = 1 if done or steps >= max_path_length else 0
-        terminals.append(rollout_done)
 
         if rollout_done:
             break
